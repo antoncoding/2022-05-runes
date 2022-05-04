@@ -112,11 +112,11 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
     uint64 public maxForSale = 14190;
 
     /// @notice Tracks the total count of NFTs claimed for free
-    uint256 public numClaimed;
+    uint128 public numClaimed;
 
     /// @notice Tracks the total count of NFTs that can be claimed
     /// @dev While we will have a merkle root set for this group, putting a hard cap helps limit the damage of any problems with an overly-generous merkle tree
-    uint256 public maxForClaim = 1100;
+    uint128 public maxForClaim = 1100;
 
     /**
      * @dev Create the contract and set the initial baseURI
@@ -611,7 +611,7 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
      * @notice the max supply available in the claimlist
      */
     function setMaxForClaim(uint256 _newSupply) public onlyOwner {
-        maxForClaim = _newSupply;
+        maxForClaim = uint128(_newSupply);
     }
 
     /**
