@@ -103,7 +103,6 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
     uint256 public maxDaSupply = 8000;
 
 
-    // @optimization pack these 2
     /// @notice Tracks the total count of NFTs sold (vs. freebies)
     uint256 public numSold;
 
