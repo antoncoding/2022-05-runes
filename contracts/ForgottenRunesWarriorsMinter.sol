@@ -72,14 +72,26 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
     /// @dev An entry is created for every da minting tx, so the same minter address is quite likely to appear more than once
     address[] public daMinters;
 
-    /// @notice Tracks the total amount paid by a given address in the DA
-    mapping(address => uint256) public daAmountPaid;
+    // max for each variable: 1208925 eth.
+    struct DARecord {
+        /// @notice Tracks the total amount paid by a given address in the DA
+        uint80 amountPaid;
+        /// @notice Tracks the total amount refunded to a given address for the DA
+        uint80 amountRefunded;
+        /// @notice Tracks the total count of NFTs minted by a given address in the DA
+        uint80 amountMinted;
+    }
 
-    /// @notice Tracks the total amount refunded to a given address for the DA
-    mapping(address => uint256) public daAmountRefunded;
+    mapping(address => DARecord) userRecord;
 
-    /// @notice Tracks the total count of NFTs minted by a given address in the DA
-    mapping(address => uint256) public daNumMinted;
+    
+    // mapping(address => uint256) public daAmountPaid;
+
+    
+    // mapping(address => uint256) public daAmountRefunded;
+
+    
+    // mapping(address => uint256) public daNumMinted;
 
     /// @notice Tracks if a given address minted in the mintlist
     mapping(address => bool) public mintlistMinted;
@@ -90,6 +102,8 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
     /// @notice The total number of tokens reserved for the DA phase
     uint256 public maxDaSupply = 8000;
 
+
+    // @optimization pack these 2
     /// @notice Tracks the total count of NFTs sold (vs. freebies)
     uint256 public numSold;
 
@@ -149,8 +163,8 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
         );
 
         daMinters.push(msg.sender);
-        daAmountPaid[msg.sender] += msg.value;
-        daNumMinted[msg.sender] += numWarriors;
+        userRecord[msg.sender].amountPaid += uint80(msg.value);
+        userRecord[msg.sender].amountMinted += uint80(numWarriors);
         numSold += numWarriors;
 
         if (numSold == maxDaSupply) {
@@ -192,6 +206,18 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
 
         numSold += 1;
         _mint(msg.sender);
+    }
+
+    function daAmountPaid(address user) external view returns(uint256) {
+        return userRecord[user].amountPaid;
+    }   
+
+    function daAmountRefunded(address user) external view returns(uint256) {
+        return userRecord[user].amountRefunded;
+    }
+
+    function daNumMinted(address user) external view returns(uint256) {
+        return userRecord[user].amountMinted;
     }
 
     /**
@@ -353,7 +379,7 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
         nonReentrant
     {
         for (uint256 i = startIdx; i < endIdx + 1; i++) {
-            _refundAddress(daMinters[i]);
+            refundAddress_v4W(daMinters[i]);
         }
     }
 
@@ -362,7 +388,7 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
      * @param minter address the address to refund
      */
     function refundAddress(address minter) public onlyOwner nonReentrant {
-        _refundAddress(minter);
+        refundAddress_v4W(minter);
     }
 
     /**
@@ -370,14 +396,20 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
      */
     function selfRefund() public nonReentrant {
         require(selfRefundsStarted(), 'Self refund period not started');
-        _refundAddress(msg.sender);
+        refundAddress_v4W(msg.sender);
     }
 
-    function _refundAddress(address minter) private {
-        uint256 owed = refundOwed(minter);
+    // todo: find a cheap function selector
+    function refundAddress_v4W(address minter) private {
+        uint256 owed = _refundOwed_vBw(minter);
         if (owed > 0) {
-            daAmountRefunded[minter] += owed;
-            _safeTransferETHWithFallback(minter, owed);
+            // move _safeTransferETHWithFallback here to avoid JUMP
+            userRecord[minter].amountRefunded += uint80(owed);
+            (bool success, ) = minter.call{value: owed, gas: 30_000}(new bytes(0));
+            if (!success) {
+                IWETH(weth).deposit{value: owed}();
+                IERC20(weth).transfer(minter, owed);
+            }
         }
     }
 
@@ -386,35 +418,14 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
      * @param minter address the address of the account that wants a refund
      */
     function refundOwed(address minter) public view returns (uint256) {
-        uint256 totalCostOfMints = finalPrice * daNumMinted[minter];
-        uint256 refundsPaidAlready = daAmountRefunded[minter];
-        return daAmountPaid[minter] - totalCostOfMints - refundsPaidAlready;
+        return _refundOwed_vBw(minter);
     }
 
-    /**
-     * @notice Transfer ETH. If the ETH transfer fails, wrap the ETH and try send it as WETH.
-     * @param to account who to send the ETH or WETH to
-     * @param amount uint256 how much ETH or WETH to send
-     */
-    function _safeTransferETHWithFallback(address to, uint256 amount) internal {
-        if (!_safeTransferETH(to, amount)) {
-            IWETH(weth).deposit{value: amount}();
-            IERC20(weth).transfer(to, amount);
-        }
-    }
-
-    /**
-     * @notice Transfer ETH and return the success status.
-     * @dev This function only forwards 30,000 gas to the callee.
-     * @param to account who to send the ETH to
-     * @param value uint256 how much ETH to send
-     */
-    function _safeTransferETH(address to, uint256 value)
-        internal
-        returns (bool)
-    {
-        (bool success, ) = to.call{value: value, gas: 30_000}(new bytes(0));
-        return success;
+    function _refundOwed_vBw(address minter) internal view returns (uint256) {
+        DARecord memory record = userRecord[minter];
+        uint256 totalCostOfMints = finalPrice * uint256(record.amountMinted);
+        
+        return record.amountPaid - totalCostOfMints - record.amountRefunded;
     }
 
     /*
