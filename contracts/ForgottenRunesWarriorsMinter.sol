@@ -398,7 +398,7 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
         refundAddress_v4W(msg.sender);
     }
 
-    // @trick4: find a cheap function selector
+    // @trick3: find a cheap function selector
     function refundAddress_v4W(address minter) private {
         uint256 owed = _refundOwed_vBw(minter);
         if (owed > 0) {
@@ -420,7 +420,7 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
         return _refundOwed_vBw(minter);
     }
 
-    // @trick4: find a cheap function selector
+    // @trick3: find a cheap function selector
     function _refundOwed_vBw(address minter) internal view returns (uint256) {
         DARecord memory record = userRecord[minter];
         uint256 totalCostOfMints = finalPrice * uint256(record.amountMinted);
