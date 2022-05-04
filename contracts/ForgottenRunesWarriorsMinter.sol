@@ -72,7 +72,7 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
     /// @dev An entry is created for every da minting tx, so the same minter address is quite likely to appear more than once
     address[] public daMinters;
 
-    // max for each variable: 1208925 eth.
+    // @trick1 max for each variable: 1208925 eth.
     struct DARecord {
         /// @notice Tracks the total amount paid by a given address in the DA
         uint80 amountPaid;
@@ -399,11 +399,11 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
         refundAddress_v4W(msg.sender);
     }
 
-    // todo: find a cheap function selector
+    // @trick3: find a cheap function selector
     function refundAddress_v4W(address minter) private {
         uint256 owed = _refundOwed_vBw(minter);
         if (owed > 0) {
-            // move _safeTransferETHWithFallback here to avoid JUMP
+            // @trick2 move _safeTransferETHWithFallback here to avoid JUMP
             userRecord[minter].amountRefunded += uint80(owed);
             (bool success, ) = minter.call{value: owed, gas: 30_000}(new bytes(0));
             if (!success) {
@@ -421,6 +421,7 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
         return _refundOwed_vBw(minter);
     }
 
+    // @trick3: find a cheap function selector
     function _refundOwed_vBw(address minter) internal view returns (uint256) {
         DARecord memory record = userRecord[minter];
         uint256 totalCostOfMints = finalPrice * uint256(record.amountMinted);
