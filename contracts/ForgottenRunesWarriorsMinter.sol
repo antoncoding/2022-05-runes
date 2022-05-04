@@ -53,17 +53,18 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
     /// @notice The address of the WETH contract
     address public weth;
 
+    // gas-op #4: pack the following 4 variables
     /// @notice The start price of the DA
-    uint256 public startPrice = 2.5 ether;
+    uint64 public startPrice = 2.5 ether;
 
     /// @notice The lowest price of the DA
-    uint256 public lowestPrice = 0.6 ether;
+    uint64 public lowestPrice = 0.6 ether;
 
     /// @notice The length of time for the price curve in the DA
-    uint256 public daPriceCurveLength = 380 minutes;
+    uint64 public daPriceCurveLength = 380 minutes;
 
     /// @notice The interval of time in which the price steps down
-    uint256 public daDropInterval = 10 minutes;
+    uint64 public daDropInterval = 10 minutes;
 
     /// @notice The final price of the DA. Will be updated when DA is over and then used for subsequent phases
     uint256 public finalPrice = 2.5 ether;
@@ -99,15 +100,16 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
     /// @notice Tracks the total count of NFTs claimed by a given address
     mapping(address => bool) public claimlistMinted;
 
-    /// @notice The total number of tokens reserved for the DA phase
-    uint256 public maxDaSupply = 8000;
+    // @optimization pack these 3
 
+    /// @notice The total number of tokens reserved for the DA phase
+    uint64 public maxDaSupply = 8000;
 
     /// @notice Tracks the total count of NFTs sold (vs. freebies)
-    uint256 public numSold;
+    uint64 public numSold;
 
     /// @notice Tracks the total count of NFTs for sale
-    uint256 public maxForSale = 14190;
+    uint64 public maxForSale = 14190;
 
     /// @notice Tracks the total count of NFTs claimed for free
     uint256 public numClaimed;
@@ -164,7 +166,7 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
         daMinters.push(msg.sender);
         userRecord[msg.sender].amountPaid += uint80(msg.value);
         userRecord[msg.sender].amountMinted += uint80(numWarriors);
-        numSold += numWarriors;
+        numSold += uint64(numWarriors);
 
         if (numSold == maxDaSupply) {
             // optimistic: save gas by not setting on every mint, but will
@@ -241,7 +243,7 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
             'Ether value sent is incorrect'
         );
 
-        numSold += numWarriors;
+        numSold += uint64(numWarriors);
         for (uint256 i = 0; i < numWarriors; i++) {
             _mint(msg.sender);
         }
@@ -559,28 +561,28 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
      * @notice set the dutch auction start price
      */
     function setStartPrice(uint256 _newPrice) public onlyOwner {
-        startPrice = _newPrice;
+        startPrice = uint64(_newPrice);
     }
 
     /**
      * @notice set the dutch auction lowest price
      */
     function setLowestPrice(uint256 _newPrice) public onlyOwner {
-        lowestPrice = _newPrice;
+        lowestPrice = uint64(_newPrice);
     }
 
     /**
      * @notice set the length of time the dutch auction price should change
      */
     function setDaPriceCurveLength(uint256 _newTime) public onlyOwner {
-        daPriceCurveLength = _newTime;
+        daPriceCurveLength = uint64(_newTime);
     }
 
     /**
      * @notice set how long it takes for the dutch auction to step down in price
      */
     function setDaDropInterval(uint256 _newTime) public onlyOwner {
-        daDropInterval = _newTime;
+        daDropInterval = uint64(_newTime);
     }
 
     /**
@@ -595,14 +597,14 @@ contract ForgottenRunesWarriorsMinter is Ownable, Pausable, ReentrancyGuard {
      * @notice the max supply available in the dutch auction
      */
     function setMaxDaSupply(uint256 _newSupply) public onlyOwner {
-        maxDaSupply = _newSupply;
+        maxDaSupply = uint64(_newSupply);
     }
 
     /**
      * @notice the total max supply available for sale in any phase
      */
     function setMaxForSale(uint256 _newSupply) public onlyOwner {
-        maxForSale = _newSupply;
+        maxForSale = uint64(_newSupply);
     }
 
     /**
